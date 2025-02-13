@@ -9,6 +9,8 @@ import sys
 import threading
 import time
 import json
+import httpx 
+import re
 from time import sleep
 from tls_client import Session
 import logging
@@ -430,7 +432,7 @@ class Vars:
   +           (01) | Guild Joiner      (09) | Pronouns Changer  (17) | Ghost Pinger     (25) | Invite Spammer             +
               (02) | Guild Leaver      (10) | Bio Changer       (18) | Rules Bypass     (26) | Dyno WhoIs Exploit      +
               (03) | Token Formatter   (11) | Guild Checker     (19) | Remove Doubles   (27) | Vc Joiner
-      +       (04) | Nickname Changer  (12) | Forum Spammer     (20) | Reaction Spammer (28) | Vc Spammer    +
+      +       (04) | Nickname Changer  (12) | Forum Spammer     (20) | RestoreCord Byp. (28) | Vc Spammer    +
               (05) | Ticket Spammer    (13) | Guild Booster     (21) | Token Reactor    (29) | Call Spammmer              +
               (06) | Channel Spammer   (14) | Fake Typing       (22) | Vanity Sniper    (30) | Onboarding Bypass +
   +           (07) | Reply Spammer     (15) | Token Onliner     (23) | Scrape Users     (31) | Pin Spammer         +
@@ -753,11 +755,11 @@ class Joiner:
         if response.status_code == 200:
             log.good("Succes | Succesfully joined {invite} -> {token[:25]}***")
         elif response.status_code == 400:
-            log.warning("Fail | Failure joining {invite} -> {token[:25]}*** (Captcha)")
+            log.warn("Fail | Failure joining {invite} -> {token[:25]}*** (Captcha)")
         elif response.status_code == 429:
-            log.warning("Ratelimited")
+            log.warn("Ratelimited")
         else:
-            log.warning("Failure -> Couldnt join | {invite}")
+            log.warn("Failure -> Couldnt join | {invite}")
 
 def joiner():
     Utils.clear()
@@ -1632,6 +1634,61 @@ class Functions:
     
         Functions.start_invites(tokens, guild_id, channel_id, inv_count, delay)
 
+    def bypass_restorecord(token: str, guild_id: str) -> bool:
+        try:
+            session = httpx.Client(headers={
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0     Safari/537.36'
+            })
+        
+            response = session.get(f"https://restorecord.com/verify/{guild_id}")
+            match = re.search('clientId":"(\d+?)"', response.text)
+        
+            if not match:
+                log.bad("Failure")
+                return False
+        
+            client_id = match.group(1)
+            oauth_response = session.post(
+                "https://discord.com/api/v9/oauth2/authorize",
+                params={
+                    'client_id': client_id,
+                    'response_type': 'code',
+                    'redirect_uri': 'https://restorecord.com/api/callback',
+                    'scope': 'identify guilds.join',
+                    'state': guild_id
+                },
+                json={'permissions': '0', 'authorize': True},
+                headers={'Authorization': token}
+            )
+        
+            if oauth_response.status_code == 429:
+                log.warn("Ratelimited")
+                return False
+        
+            if oauth_response.status_code != 200:
+                log.bad(f"Failure | {oauth_response.json()}")
+                return False
+        
+            log.good(f"Succes | Bypassed restorecord for -> {guild_id}")
+            return True
+        except Exception as e:
+            print(f"[ERROR] {e}")
+            return False
+
+    def restorecord():
+        Utils.clear()
+        UI.prnt(Vars.banner)
+        Utils.settitle('Lost Spammer V1 ┃ Location: [Restorecord ┃ (Bypass)]')
+        guild_id = UI.ask("Guild")
+        Utils.clear()
+        UI.prnt(Vars.banner)
+        Utils.settitle('Lost Spammer V1 ┃ Location: [Restorecord ┃ (Bypass)]')
+        with open("core/input/tokens.txt") as f:
+            tokens = f.read().splitlines()
+    
+        for token in tokens:
+            bypass_restorecord(token, guild_id)
+
 onboard_bypass = OnboardBypass()
 
 class MainVisuals:
@@ -1646,32 +1703,32 @@ class MainVisuals:
 
         options = {
             '1': joiner, # done
-            '2': UtilsFuncs.notbuilt, # 2
+            '2': UtilsFuncs.notbuilt, # 1
             '3': Functions.Formatter, # done
-            '4': UtilsFuncs.notbuilt, # 3
-            '5': UtilsFuncs.notbuilt, # 4
+            '4': UtilsFuncs.notbuilt, # 2
+            '5': UtilsFuncs.notbuilt, # 3
             '6': Functions.chspammer, # done
             '7': Functions.replyspam, # done
-            '8': UtilsFuncs.notbuilt, # 5
-            '9': UtilsFuncs.notbuilt, # 6
-            '10': UtilsFuncs.notbuilt, # 7
+            '8': UtilsFuncs.notbuilt, # 4
+            '9': UtilsFuncs.notbuilt, # 5
+            '10': UtilsFuncs.notbuilt, # 6
             '11': Functions.guildcheck, # done
-            '13': UtilsFuncs.notbuilt, # 8
-            '14': UtilsFuncs.notbuilt, # 9
+            '13': UtilsFuncs.notbuilt, # 7
+            '14': UtilsFuncs.notbuilt, # 8
             '15': Functions.activity, # done
-            '16': UtilsFuncs.notbuilt, # 10
-            '17': UtilsFuncs.notbuilt, # 11
+            '16': UtilsFuncs.notbuilt, # 9
+            '17': UtilsFuncs.notbuilt, # 10
             '18': bypass.accept_rules, # done
-            '19': UtilsFuncs.notbuilt, # 12
-            '20': UtilsFuncs.notbuilt, # 13
-            '21': UtilsFuncs.notbuilt, # 14
+            '19': UtilsFuncs.notbuilt, # 11
+            '20': Functions.restorecord, # done
+            '21': UtilsFuncs.notbuilt, # 12
             '22': Functions.vanity_sniper, # done
             '23': Functions.idscraper, # done
-            '24': UtilsFuncs.notbuilt, # 15
+            '24': UtilsFuncs.notbuilt, # 13
             '25': Functions.logspam, # done
             '26': Functions.dynoexploit, # done
-            '27': UtilsFuncs.notbuilt, # 17
-            '28': UtilsFuncs.notbuilt, # 18
+            '27': UtilsFuncs.notbuilt, # 14
+            '28': UtilsFuncs.notbuilt, # 15
             '29': callspam, # done
             '30': onboard_bypass.onboard_bypass, # done
             '31': Functions.pin_spammer, # done
