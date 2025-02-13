@@ -431,7 +431,7 @@ class Vars:
               (02) | Guild Leaver      (10) | Bio Changer       (18) | Rules Bypass     (26) | Dyno WhoIs Exploit      +
               (03) | Token Formatter   (11) | Guild Checker     (19) | Remove Doubles   (27) | Vc Joiner
       +       (04) | Nickname Changer  (12) | Forum Spammer     (20) | Reaction Spammer (28) | Vc Spammer    +
-              (05) | Ticket Spammer    (13) | Guild Booster     (21) | Token Reactor    (29) | RestoreCord Byp.              +
+              (05) | Ticket Spammer    (13) | Guild Booster     (21) | Token Reactor    (29) | Call Spammmer              +
               (06) | Channel Spammer   (14) | Fake Typing       (22) | Vanity Sniper    (30) | Onboarding Bypass +
   +           (07) | Reply Spammer     (15) | Token Onliner     (23) | Scrape Users     (31) | Pin Spammer         +
               (08) | Token Checker     (16) | Thread Flooder    (24) | Hypesquad Joiner (32) | Button Bypass       +
@@ -545,6 +545,101 @@ class OnboardBypass:
             for future in futures:
                 future.result()
 
+
+class Spammer:
+    def __init__(self, token: str) -> None:
+        self.session = Session('chrome_131', random_tls_extension_order=True)
+        self.session.headers.update({
+            'authorization': token
+        })
+        self.headers = {
+            'authority': 'discord.com',
+            'accept': '*/*',
+            'accept-language': 'en-US',
+            'authorization': token,
+            'content-type': 'application/json',
+            'origin': 'https://discord.com',
+            'sec-ch-ua': '"Not?A_Brand";v="8", "Chromium";v="108"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9018 Chrome/108.0.5359.215 Electron/22.3.24 Safari/537.36',
+            'x-debug-options': 'bugReporterEnabled',
+            'x-discord-locale': 'en-GB',
+            'x-discord-timezone': 'America/Chicago',
+            'x-super-properties': 'eyJvcyI6IndpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCIsImRldmljZSI6ImRlc2t0b3AiLCJicm93c2VyX3ZlcnNpb24iOiIxMDguMC41MzU5LjIxNSIsImJ1aWxkX251bWJlciI6IjkyNjU5IiwiY2xpZW50X2V2ZW50X3NvdXJjZSI6bnVsbH0='
+        }
+
+    def openDM(self, uid: str) -> str:
+        payload = {"recipients": [uid]}
+        response = self.session.post(
+            'https://discord.com/api/v9/users/@me/channels',
+            headers=self.headers,
+            json=payload
+        )
+        if response.status_code == 200:
+            return response.json().get("id")
+        else:
+            log.bad(f"Failed | Opening DM -> {uid}")
+            return None
+
+    def send_call(self, uid: str):
+        user_id = self.openDM(uid)
+        if not user_id:
+            return
+
+        try:
+            log.good(f"Succes | Calling -> {uid}")
+            while True:
+                try:
+                    ws = WebSocket()
+                    ws.connect("wss://gateway.discord.gg/?v=8&encoding=json")
+                    ws.send(dumps({"op": 2, "d": {"token": self.headers['authorization'], "properties": {
+                            "$os": "windows", "$browser": "Discord", "$device": "desktop"}}}))
+                    ws.send(dumps({"op": 4, "d": {"guild_id": None, "channel_id": str(
+                        user_id), "self_mute": False, "self_deaf": False, "self_stream": False, "self_video": False}}))
+                    ws.send(dumps({"op": 18, "d": {"type": "guild", "guild_id": None, "channel_id": str(
+                        user_id), "preferred_region": "singapore"}}))
+                    ws.send(dumps({"op": 1, "d": None}))
+                    sleep(1)
+                    ws.send(dumps({
+                        "op": 4,
+                        "d": {
+                            "guild_id": None,
+                            "channel_id": None,
+                            "self_mute": True,
+                            "self_deaf": False,
+                            "self_video": True
+                        }
+                    }))
+                    sleep(1.75)
+                except Exception as e:
+                    log.bad(f"Error | Failed to call -> {uid}")
+                    break
+        except Exception as e:
+            log.bad(f"Unexpected error -> While calling | {uid}")
+
+
+def callspam():
+    Utils.clear()
+    UI.prnt(Vars.banner)
+    Utils.settitle('Lost Spammer V1 ┃ Location: [Call ┃ (Spammer)]')
+    user_id = UI.ask("User")
+    Utils.clear()
+    UI.prnt(Vars.banner)
+    Utils.settitle('Lost Spammer V1 ┃ Location: [Call ┃ (Spammer)]')
+    try:
+        with open("core/input/tokens.txt", "r") as file:
+            tokens = [line.strip() for line in file.readlines() if line.strip()]
+    except FileNotFoundError:
+        return
+
+    for token in tokens:
+        spammer = Spammer(token)
+        spammer.send_call(user_id)
+
 class RulesBypass:
     def __init__(self):
         self.session = Session('chrome_131', random_tls_extension_order=True)
@@ -609,6 +704,79 @@ class RulesBypass:
             executor.map(bypasstherules, tokens)
 
 bypass = RulesBypass()
+
+class Joiner:
+    def __init__(self):
+        self.session = tls_client.Session('chrome_131', random_tls_extension_order=True)
+        self.cookies = self.get_discord_cookies()
+        self.props = self.super_properties()
+    
+    def get_discord_cookies(self) -> str:
+        response = self.session.get('https://discord.com')
+        if response.status_code == 200:
+            return "; ".join([f"{cookie.name}={cookie.value}" for cookie in response.cookies]) + "; locale=en-US"
+        return "__dcfduid=62f9e16000a211ef8089eda5bffbf7f9; __sdcfduid=62f9e16100a211ef8089eda5bffbf7f98e904ba04346eacdf57ee4af97bdd94e4c16f7df1db5132bea9132dd26b21a2a; __cfruid=a2ccd7637937e6a41e6888bdb6e8225cd0a6f8e0-1714045775; _cfuvid=s_CLUzmUvmiXyXPSv91CzlxP00pxRJpqEhuUgJql85Y-1714045775095-0.0.1.1-604800000; locale=en-US"
+    
+    def super_properties(self) -> str:
+        payload = {
+            "os": "Windows",
+            "browser": "Discord Client",
+            "release_channel": "stable",
+            "client_version": "1.0.9181",
+            "os_version": "10.0.19045",
+            "system_locale": "en",
+            "browser_user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9181 Chrome/128.0.6613.186 Electron/32.2.7 Safari/537.36",
+            "browser_version": "32.2.7",
+            "client_build_number": 366955,
+            "native_build_number": 58420,
+            "client_event_source": None,
+        }
+        return base64.b64encode(json.dumps(payload).encode()).decode()
+    
+    def headers(self, token: str) -> dict:
+        return {
+            "authority": "discord.com",
+            "accept": "*/*",
+            "accept-language": "en",
+            "authorization": token,
+            "cookie": self.cookies,
+            "content-type": "application/json",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9181 Chrome/128.0.6613.186 Electron/32.2.7 Safari/537.36",
+            "x-discord-locale": "en-US",
+            "x-debug-options": "bugReporterEnabled",
+            "x-super-properties": self.props,
+        }
+    
+    def joiner(self, token: str, invite: str):
+        payload = {"session_id": uuid.uuid4().hex}
+        response = self.session.post(f"https://discord.com/api/v9/invites/{invite}", headers=self.headers(token), json=payload)
+        if response.status_code == 200:
+            log.good("Succes | Succesfully joined {invite} -> {token[:25]}***")
+        elif response.status_code == 400:
+            log.warning("Fail | Failure joining {invite} -> {token[:25]}*** (Captcha)")
+        elif response.status_code == 429:
+            log.warning("Ratelimited")
+        else:
+            log.warning("Failure -> Couldnt join | {invite}")
+
+def joiner():
+    Utils.clear()
+    UI.prnt(Vars.banner)
+    Utils.settitle('Lost Spammer V1 ┃ Location: [Guild ┃ (Joiner)]')
+    invite = UI.ask("Invite Code")
+    threads = int(UI.ask("Thread Ammount"))
+    Utils.clear()
+    UI.prnt(Vars.banner)
+    Utils.settitle('Lost Spammer V1 ┃ Location: [Guild ┃ (Joiner)]')
+    tokens = open("core/input/tokens.txt").read().splitlines()
+    
+    def worker(token):
+        Joiner.joiner(token, invite)
+    
+    for token in tokens:
+        while threading.active_count() > threads:
+            time.sleep(0.1)
+        threading.Thread(target=worker, args=(token,)).start()
 
 class Functions:
     def returnHeaders(token: str) -> dict:
@@ -930,7 +1098,7 @@ class Functions:
         if status == "random":
             stat = ['online', 'dnd', 'idle']
             status = random.choice(stat)
-        ws.connect('wss://gateway.discord.gg/?v=6&encoding=json')
+        ws.connect('wss://gateway.discord.gg/?v=9&encoding=json')
         hello = json.loads(ws.recv())
         heartbeat_interval = hello['d']['heartbeat_interval']
         
@@ -1477,7 +1645,7 @@ class MainVisuals:
         choice = UI.ask(f'input')
 
         options = {
-            '1': UtilsFuncs.notbuilt, # 1
+            '1': joiner, # done
             '2': UtilsFuncs.notbuilt, # 2
             '3': Functions.Formatter, # done
             '4': UtilsFuncs.notbuilt, # 3
@@ -1504,7 +1672,7 @@ class MainVisuals:
             '26': Functions.dynoexploit, # done
             '27': UtilsFuncs.notbuilt, # 17
             '28': UtilsFuncs.notbuilt, # 18
-            '29': UtilsFuncs.notbuilt, # 19
+            '29': callspam, # done
             '30': onboard_bypass.onboard_bypass, # done
             '31': Functions.pin_spammer, # done
             '32': Functions.buttonbypass, # done
