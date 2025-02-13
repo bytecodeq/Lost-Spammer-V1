@@ -1,8 +1,9 @@
 [Change Logs] -> V1 | Added Some options
 ___________
-[Change Logs] -> V2 | Added a call spammmer and a token joiner
+[Change Logs] -> V2 | Added: call spammer, Token joiner, Restorecord Bypass
 
-![image](https://github.com/user-attachments/assets/cdbdf7b7-0627-4774-93b1-515717aa2e5b)
+![image](https://github.com/user-attachments/assets/306ccd82-3548-4006-8d0c-2a81cac90c9b)
+
 
 **⭐**
 _____________
